@@ -14,10 +14,15 @@ import locale
 import numbers
 import operator
 from collections.abc import Callable, Iterable, Iterator, Sequence
+from types import NotImplementedType
 from typing import (
     TYPE_CHECKING,
     Any,
     Generic,
+    Self,
+    SupportsComplex,
+    SupportsFloat,
+    SupportsInt,
     TypeVar,
     overload,
 )
@@ -25,7 +30,6 @@ from typing import (
 from ..._typing import Magnitude, QuantityOrUnitLike, Scalar, UnitLike
 from ...compat import (
     HAS_NUMPY,
-    Self,
     _to_magnitude,
     deprecated,
     eq,
@@ -164,26 +168,20 @@ class PlainQuantity(Generic[MagnitudeT], PrettyIPython, SharedRegistryObject):
         return _unpickle_quantity, (PlainQuantity, self.magnitude, self._units)
 
     @overload
-    def __new__(
-        cls, value: MagnitudeT, units: UnitLike | None = None
-    ) -> PlainQuantity[MagnitudeT]: ...
+    def __new__(cls, value: MagnitudeT, units: UnitLike | None = None) -> Self: ...
 
     @overload
-    def __new__(
-        cls, value: str, units: UnitLike | None = None
-    ) -> PlainQuantity[Any]: ...
+    def __new__(cls, value: str, units: UnitLike | None = None) -> Self: ...
 
     @overload
     def __new__(  # type: ignore[misc]
         cls, value: Sequence[ScalarT], units: UnitLike | None = None
-    ) -> PlainQuantity[Any]: ...
+    ) -> Self: ...
 
     @overload
-    def __new__(
-        cls, value: PlainQuantity[Any], units: UnitLike | None = None
-    ) -> PlainQuantity[Any]: ...
+    def __new__(cls, value: Self, units: UnitLike | None = None) -> Self: ...
 
-    def __new__(cls, value, units=None):
+    def __new__(cls, value, units: UnitLike | None = None) -> Self:
         if is_upcast_type(type(value)):
             raise TypeError(f"PlainQuantity cannot wrap upcast type {type(value)}")
 
@@ -232,7 +230,7 @@ class PlainQuantity(Generic[MagnitudeT], PrettyIPython, SharedRegistryObject):
 
         return inst
 
-    def __iter__(self: PlainQuantity[MagnitudeT]) -> Iterator[Any]:
+    def __iter__(self: PlainQuantity[Iterable]) -> Iterator[PlainQuantity[Any]]:
         # Make sure that, if self.magnitude is not iterable, we raise TypeError as soon
         # as one calls iter(self) without waiting for the first element to be drawn from
         # the iterator
@@ -244,11 +242,11 @@ class PlainQuantity(Generic[MagnitudeT], PrettyIPython, SharedRegistryObject):
 
         return it_outer()
 
-    def __copy__(self) -> PlainQuantity[MagnitudeT]:
+    def __copy__(self) -> Self:
         ret = self.__class__(copy.copy(self._magnitude), self._units)
         return ret
 
-    def __deepcopy__(self, memo) -> PlainQuantity[MagnitudeT]:
+    def __deepcopy__(self, memo) -> Self:
         ret = self.__class__(
             copy.deepcopy(self._magnitude, memo), copy.deepcopy(self._units, memo)
         )
@@ -290,7 +288,7 @@ class PlainQuantity(Generic[MagnitudeT], PrettyIPython, SharedRegistryObject):
         """PlainQuantity's magnitude. Short form for `magnitude`"""
         return self._magnitude
 
-    def m_as(self, units) -> MagnitudeT:
+    def m_as(self, units: QuantityOrUnitLike | None) -> MagnitudeT:
         """PlainQuantity's magnitude expressed in particular units.
 
         Parameters
@@ -411,12 +409,12 @@ class PlainQuantity(Generic[MagnitudeT], PrettyIPython, SharedRegistryObject):
         return cls(a, units)
 
     @classmethod
-    def from_tuple(cls, tup):
+    def from_tuple(cls, tup) -> Self:
         for units_tup in tup[1]:
             cls._REGISTRY.get_name(units_tup[0])
         return cls(tup[0], cls._REGISTRY.UnitsContainer(tup[1]))
 
-    def to_tuple(self) -> tuple[MagnitudeT, tuple[tuple[str, ...]]]:
+    def to_tuple(self) -> tuple[MagnitudeT, tuple[tuple[str, Scalar], ...]]:
         return self.m, tuple(self._units.items())
 
     def compatible_units(self, *contexts):
@@ -566,7 +564,7 @@ class PlainQuantity(Generic[MagnitudeT], PrettyIPython, SharedRegistryObject):
 
         return None
 
-    def to_base_units(self, system=None) -> PlainQuantity[MagnitudeT]:
+    def to_base_units(self, system=None) -> Self:
         """Return PlainQuantity rescaled to plain units.
 
         Parameters
@@ -594,23 +592,25 @@ class PlainQuantity(Generic[MagnitudeT], PrettyIPython, SharedRegistryObject):
     ito_unprefixed = qto.ito_unprefixed
 
     # Mathematical operations
-    def __int__(self) -> int:
+    def __int__(self: PlainQuantity[SupportsInt]) -> int:
         if self.dimensionless:
             return int(self._convert_magnitude_not_inplace(UnitsContainer()))
         raise DimensionalityError(self._units, "dimensionless")
 
-    def __float__(self) -> float:
+    def __float__(self: PlainQuantity[SupportsFloat]) -> float:
         if self.dimensionless:
             return float(self._convert_magnitude_not_inplace(UnitsContainer()))
         raise DimensionalityError(self._units, "dimensionless")
 
-    def __complex__(self) -> complex:
+    def __complex__(self: PlainQuantity[SupportsComplex]) -> complex:
         if self.dimensionless:
             return complex(self._convert_magnitude_not_inplace(UnitsContainer()))
         raise DimensionalityError(self._units, "dimensionless")
 
     @check_implemented
-    def _iadd_sub(self, other, op):
+    def _iadd_sub(
+        self, other: PlainQuantity | list | tuple | Magnitude, op
+    ) -> Self | NotImplementedType:
         """Perform addition or subtraction operation in-place and return the result.
 
         Parameters
@@ -622,7 +622,7 @@ class PlainQuantity(Generic[MagnitudeT], PrettyIPython, SharedRegistryObject):
 
         """
         if not self._check(other):
-            # other not from same Registry or not a PlainQuantity
+            # other not a PlainQuantity
             try:
                 other_magnitude = _to_magnitude(
                     other, self.force_ndarray, self.force_ndarray_like
@@ -1316,16 +1316,16 @@ class PlainQuantity(Generic[MagnitudeT], PrettyIPython, SharedRegistryObject):
             new_self = self.to_root_units()
             return other**new_self._magnitude
 
-    def __abs__(self) -> PlainQuantity[MagnitudeT]:
+    def __abs__(self) -> Self:
         return self.__class__(abs(self._magnitude), self._units)
 
     def __round__(self, ndigits: int | None = None) -> PlainQuantity[int]:
         return self.__class__(round(self._magnitude, ndigits), self._units)
 
-    def __pos__(self) -> PlainQuantity[MagnitudeT]:
+    def __pos__(self) -> Self:
         return self.__class__(operator.pos(self._magnitude), self._units)
 
-    def __neg__(self) -> PlainQuantity[MagnitudeT]:
+    def __neg__(self) -> Self:
         return self.__class__(operator.neg(self._magnitude), self._units)
 
     @check_implemented
