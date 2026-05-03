@@ -3,9 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from decimal import Decimal
 from fractions import Fraction
-from typing import TYPE_CHECKING, Any, Protocol, TypeVar, Union
-
-from .compat import Never, TypeAlias
+from typing import TYPE_CHECKING, Any, Never, Protocol
 
 if TYPE_CHECKING:
     from .facets.plain import PlainQuantity as Quantity
@@ -17,35 +15,31 @@ HAS_NUMPY = False
 if TYPE_CHECKING:
     from .compat import HAS_NUMPY
 
+type _BuiltinScalar = complex | float | int | Decimal | Fraction
 if HAS_NUMPY:
     from .compat import np
 
-    Scalar: TypeAlias = Union[complex, float, int, Decimal, Fraction, np.number[Any]]
-    Array = np.ndarray[Any, Any]
+    type Scalar = _BuiltinScalar | np.number[Any]
+    type Array = np.ndarray[Any, Any]
 else:
-    Scalar: TypeAlias = Union[complex, float, int, Decimal, Fraction]
-    Array: TypeAlias = Never
+    type Scalar = _BuiltinScalar
+    type Array = Never
 
 # TODO: Change when Python 3.10 becomes minimal version.
-Magnitude = Union[Scalar, Array]
+Magnitude = Scalar | Array
 
-UnitLike = Union[str, dict[str, Scalar], "UnitsContainer", "Unit"]
+type UnitLike = str | dict[str, Scalar] | UnitsContainer | Unit
 
-QuantityOrUnitLike = Union["Quantity", UnitLike]
+type QuantityOrUnitLike = Quantity | UnitLike
 
-Shape = tuple[int, ...]
+type Shape = tuple[int, ...]
 
-S = TypeVar("S")
-
-FuncType = Callable[..., Any]
-F = TypeVar("F", bound=FuncType)
+type FuncType = Callable[..., Any]
 
 
 # TODO: Improve or delete types
 QuantityArgument = Any
 
-T = TypeVar("T")
-
 
 class Handler(Protocol):
-    def __getitem__(self, item: type[T]) -> Callable[[T], None]: ...
+    def __getitem__[T](self, item: type[T]) -> Callable[[T], None]: ...
