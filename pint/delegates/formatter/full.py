@@ -134,8 +134,10 @@ class FullFormatter(BaseFormatter):
     ) -> str:
         uspec = uspec or self.default_format
         sort_func = sort_func or self.default_sort_func
+        # When '^' is specified, use negative powers (as_ratio=False) like format_quantity does
+        as_ratio = False if "^" in uspec else True
         return self.get_formatter(uspec).format_unit(
-            unit, uspec, sort_func=sort_func, **babel_kwds
+            unit, uspec, sort_func=sort_func, as_ratio=as_ratio, **babel_kwds
         )
 
     def format_quantity[MagnitudeT: Magnitude](
