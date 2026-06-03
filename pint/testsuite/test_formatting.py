@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pint.registry import UnitRegistry
 import pytest
 
 import pint.formatting as fmt
@@ -72,3 +73,212 @@ def test_register_unit_format(func_registry):
         @fmt.register_unit_format("custom")
         def format_custom_redefined(unit, registry, **options):
             return "<overwritten>"
+
+
+class TestFormatUnitCaretFlag:
+    """Test that the '^' flag controls whether to use negative powers."""
+
+    @pytest.mark.parametrize(
+        ["unit", "format_spec", "expected", "xfail", "info"],
+        [
+            pytest.param(
+                lambda reg: "",
+                "C",
+                "dimensionless",
+                None,
+                "basic-dimensionless",
+                id="basic-dimensionless",
+            ),
+            pytest.param(
+                lambda reg: "m",
+                "W",
+                ValueError,
+                None,
+                "basic-invalid",
+                id="basic-invalid",
+            ),
+            pytest.param(
+                lambda reg: reg.second**-1,
+                "D",
+                "1 / second",
+                None,
+                "negative-exponent-default-D",
+                id="negative-exponent-default-D",
+            ),
+            pytest.param(
+                lambda reg: reg.second**-1,
+                "C",
+                "1/second",
+                None,
+                "negative-exponent-default-C",
+                id="negative-exponent-default-C",
+            ),
+            pytest.param(
+                lambda reg: reg.second**-1,
+                "P",
+                "1/second",
+                None,
+                "negative-exponent-no-caret-P",
+                id="negative-exponent-no-caret-P",
+            ),
+            pytest.param(
+                lambda reg: reg.second**-1,
+                "~P",
+                "1/s",
+                None,
+                "negative-exponent-no-caret-~P",
+                id="negative-exponent-no-caret-~P",
+            ),
+            pytest.param(
+                lambda reg: reg.second**-1,
+                "^P",
+                "second⁻¹",
+                None,
+                "negative-exponent-with-caret-P",
+                id="negative-exponent-with-caret-P",
+            ),
+            pytest.param(
+                lambda reg: reg.second**-1,
+                "~^P",
+                "s⁻¹",
+                None,
+                "negative-exponent-with-caret-~P",
+                id="negative-exponent-with-caret-~P",
+            ),
+            pytest.param(
+                lambda reg: reg.second**-1,
+                "^C",
+                "second**-1",
+                None,
+                "negative-exponent-with-caret-compact",
+                id="negative-exponent-with-caret-compact",
+            ),
+            pytest.param(
+                lambda reg: reg.kilogram**-1 * reg.meter**-2,
+                "^P",
+                "kilogram⁻¹·meter⁻²",
+                None,
+                "multiple-negative-exponents-with-caret",
+                id="multiple-negative-exponents-with-caret",
+            ),
+            pytest.param(
+                lambda reg: reg.meter**2 * reg.second**-1,
+                "^P",
+                "meter²·second⁻¹",
+                None,
+                "mixed-exponents-with-caret",
+                id="mixed-exponents-with-caret",
+            ),
+            pytest.param(
+                lambda reg: 5 * reg.second**-1,
+                "~^P",
+                "5 s⁻¹",
+                None,
+                "quantity-with-caret-matches-unit",
+                id="quantity-with-caret-matches-unit",
+            ),
+            pytest.param(
+                lambda reg: reg.second**-1,
+                "^D",
+                "second ** -1",
+                None,
+                "caret-with-default-formatter-D",
+                id="caret-with-default-formatter-D",
+            ),
+            pytest.param(
+                lambda reg: reg.second**-1,
+                "^",
+                "second ** -1",
+                None,
+                "caret-with-default-formatter-default",
+                id="caret-with-default-formatter-default",
+            ),
+            pytest.param(
+                lambda reg: reg.second**-1,
+                "^L",
+                r"\mathrm{second}^{-1}",
+                None,
+                "caret-with-latex-formatter",
+                id="caret-with-latex-formatter",
+            ),
+            pytest.param(
+                lambda reg: reg.second**-1,
+                "^H",
+                "second<sup>-1</sup>",
+                None,
+                "caret-with-html-formatter",
+                id="caret-with-html-formatter",
+            ),
+            pytest.param(
+                lambda reg: reg.meter**-1 * reg.second**-2,
+                "~P",
+                "1/m/s²",
+                None,
+                "no-caret-ratio-format",
+                id="no-caret-ratio-format",
+            ),
+            pytest.param(
+                lambda reg: reg.meter**-1 * reg.second**-2,
+                "~^P",
+                "m⁻¹·s⁻²",
+                None,
+                "with-caret-negative-powers",
+                id="with-caret-negative-powers",
+            ),
+        ],
+    )
+    def test_format_unit_caret_flag(
+        self,
+        func_registry,
+        unit,
+        format_spec,
+        expected,
+        xfail,
+        info,
+    ):
+        if xfail:
+            pytest.xfail(xfail)
+
+        actual_unit = unit(func_registry) if callable(unit) else unit
+
+        if isinstance(actual_unit, str):
+            if expected is ValueError:
+                with pytest.raises(expected):
+                    fmt.format_unit(actual_unit, format_spec)
+                return
+            result = fmt.format_unit(actual_unit, format_spec)
+        else:
+            result = f"{actual_unit:{format_spec}}"
+
+        assert result == expected
+
+
+class TestFormatQuantityConsistency:
+    """Ensure quantities and units format consistently with '^' flag."""
+
+    def test_quantity_unit_format_consistency_with_caret(self, func_registry):
+        """Test that quantities maintain consistency with standalone units."""
+        specs = ["~^P", "~^D", "~^C"]
+        u = func_registry.meter**-1 / func_registry.second
+        q = 42 * u
+
+        for spec in specs:
+            unit_fmt = f"{u:{spec}}"
+            quantity_fmt = f"{q:{spec}}"
+            # Quantity format should be magnitude + unit format
+            assert quantity_fmt.endswith(unit_fmt)
+
+    def test_caret_preserves_quantity_magnitude(self, func_registry):
+        """Test that '^' doesn't affect magnitude formatting in quantities."""
+        u = func_registry.second**-1
+        q = 5.5 * u
+
+        # Magnitude should be identical
+        assert f"{q:~^P}".split()[0] == "5.5"
+        # Only unit part differs between with/without '^'
+        assert f"{q:~P}" == "5.5 1/s"
+        assert f"{q:~^P}" == "5.5 s⁻¹"
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])
