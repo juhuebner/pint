@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from pint.registry import UnitRegistry
 import pytest
 
 import pint.formatting as fmt
@@ -79,30 +78,17 @@ class TestFormatUnitCaretFlag:
     """Test that the '^' flag controls whether to use negative powers."""
 
     @pytest.mark.parametrize(
-        ["unit", "format_spec", "expected", "xfail", "info"],
+        ["unit", "format_spec", "expected", "xfail"],
         [
             pytest.param(
-                lambda reg: "",
-                "C",
-                "dimensionless",
-                None,
-                "basic-dimensionless",
-                id="basic-dimensionless",
+                lambda reg: "", "C", "dimensionless", None, id="basic-dimensionless"
             ),
-            pytest.param(
-                lambda reg: "m",
-                "W",
-                ValueError,
-                None,
-                "basic-invalid",
-                id="basic-invalid",
-            ),
+            pytest.param(lambda reg: "m", "W", ValueError, None, id="basic-invalid"),
             pytest.param(
                 lambda reg: reg.second**-1,
                 "D",
                 "1 / second",
                 None,
-                "negative-exponent-default-D",
                 id="negative-exponent-default-D",
             ),
             pytest.param(
@@ -110,7 +96,6 @@ class TestFormatUnitCaretFlag:
                 "C",
                 "1/second",
                 None,
-                "negative-exponent-default-C",
                 id="negative-exponent-default-C",
             ),
             pytest.param(
@@ -118,7 +103,6 @@ class TestFormatUnitCaretFlag:
                 "P",
                 "1/second",
                 None,
-                "negative-exponent-no-caret-P",
                 id="negative-exponent-no-caret-P",
             ),
             pytest.param(
@@ -126,7 +110,6 @@ class TestFormatUnitCaretFlag:
                 "~P",
                 "1/s",
                 None,
-                "negative-exponent-no-caret-~P",
                 id="negative-exponent-no-caret-~P",
             ),
             pytest.param(
@@ -134,7 +117,6 @@ class TestFormatUnitCaretFlag:
                 "^P",
                 "second⁻¹",
                 None,
-                "negative-exponent-with-caret-P",
                 id="negative-exponent-with-caret-P",
             ),
             pytest.param(
@@ -142,7 +124,6 @@ class TestFormatUnitCaretFlag:
                 "~^P",
                 "s⁻¹",
                 None,
-                "negative-exponent-with-caret-~P",
                 id="negative-exponent-with-caret-~P",
             ),
             pytest.param(
@@ -150,7 +131,6 @@ class TestFormatUnitCaretFlag:
                 "^C",
                 "second**-1",
                 None,
-                "negative-exponent-with-caret-compact",
                 id="negative-exponent-with-caret-compact",
             ),
             pytest.param(
@@ -158,7 +138,6 @@ class TestFormatUnitCaretFlag:
                 "^P",
                 "kilogram⁻¹·meter⁻²",
                 None,
-                "multiple-negative-exponents-with-caret",
                 id="multiple-negative-exponents-with-caret",
             ),
             pytest.param(
@@ -166,7 +145,6 @@ class TestFormatUnitCaretFlag:
                 "^P",
                 "meter²·second⁻¹",
                 None,
-                "mixed-exponents-with-caret",
                 id="mixed-exponents-with-caret",
             ),
             pytest.param(
@@ -174,7 +152,6 @@ class TestFormatUnitCaretFlag:
                 "~^P",
                 "5 s⁻¹",
                 None,
-                "quantity-with-caret-matches-unit",
                 id="quantity-with-caret-matches-unit",
             ),
             pytest.param(
@@ -182,7 +159,6 @@ class TestFormatUnitCaretFlag:
                 "^D",
                 "second ** -1",
                 None,
-                "caret-with-default-formatter-D",
                 id="caret-with-default-formatter-D",
             ),
             pytest.param(
@@ -190,7 +166,6 @@ class TestFormatUnitCaretFlag:
                 "^",
                 "second ** -1",
                 None,
-                "caret-with-default-formatter-default",
                 id="caret-with-default-formatter-default",
             ),
             pytest.param(
@@ -198,7 +173,6 @@ class TestFormatUnitCaretFlag:
                 "^L",
                 r"\mathrm{second}^{-1}",
                 None,
-                "caret-with-latex-formatter",
                 id="caret-with-latex-formatter",
             ),
             pytest.param(
@@ -206,7 +180,6 @@ class TestFormatUnitCaretFlag:
                 "^H",
                 "second<sup>-1</sup>",
                 None,
-                "caret-with-html-formatter",
                 id="caret-with-html-formatter",
             ),
             pytest.param(
@@ -214,7 +187,6 @@ class TestFormatUnitCaretFlag:
                 "~P",
                 "1/m/s²",
                 None,
-                "no-caret-ratio-format",
                 id="no-caret-ratio-format",
             ),
             pytest.param(
@@ -222,7 +194,6 @@ class TestFormatUnitCaretFlag:
                 "~^P",
                 "m⁻¹·s⁻²",
                 None,
-                "with-caret-negative-powers",
                 id="with-caret-negative-powers",
             ),
         ],
@@ -234,7 +205,6 @@ class TestFormatUnitCaretFlag:
         format_spec,
         expected,
         xfail,
-        info,
     ):
         if xfail:
             pytest.xfail(xfail)
